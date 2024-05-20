@@ -1,8 +1,8 @@
-#pragma once
+ï»¿#pragma once
 
 #include "SocketDefine.h"
 
-// 1 : 1 ¼­¹ö - Å¬¶óÀÌ¾ğÆ® ±¸Á¶
+// 1 : 1 ì„œë²„ - í´ë¼ì´ì–¸íŠ¸ êµ¬ì¡°
 class CClientSocket
 {
 public:
