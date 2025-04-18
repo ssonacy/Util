@@ -1,11 +1,6 @@
 #include "stdafx.h"
 #include "Log.h"
-
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[]=__FILE__;
-#endif
+#include <atlstr.h>
 
 namespace Log
 {
@@ -17,7 +12,7 @@ namespace Log
 	static CString _log_file_name_format = _T("%Y-%m-%d.txt");
 	static CString _log_time_format		 = _T("[%Y-%m-%d %H:%M:%S] ");
 
-	namespace
+	namespace Private
 	{
 		CString _loot_dir;
 		CRITICAL_SECTION cs_;
@@ -26,54 +21,54 @@ namespace Log
 
 	void Init() 
 	{ 
-		InitializeCriticalSectionAndSpinCount( &cs_ , 3000 ); 
+		InitializeCriticalSectionAndSpinCount( &Private::cs_ , 3000 ); 
 		SetDirectory( FolderUtil::GetFullDirectoryPath() + _T("Log\\") );
 	}
 
 	void Release() 
 	{ 
-		DeleteCriticalSection( &cs_ ); 
+		DeleteCriticalSection( &Private::cs_ ); 
 	}
 
 	void SetDirectory( LPCTSTR Dir ) 
 	{ 
-		CSPtr RAII( cs_ );
+		CSPtr RAII( Private::cs_ );
 
 		if ( !FolderUtil::ExistFolder( Dir ) )
 			FolderUtil::CreateFolder( Dir , FALSE );
 
-		_loot_dir = Dir; 
+		Private::_loot_dir = Dir; 
 
-		TCHAR last_ch = _loot_dir.GetAt( _loot_dir.GetLength() - 1 );
-		if ( last_ch != _T('\\') ) _loot_dir.AppendChar( _T('\\') );
+		TCHAR last_ch = Private::_loot_dir.GetAt( Private::_loot_dir.GetLength() - 1 );
+		if ( last_ch != _T('\\') ) Private::_loot_dir.AppendChar( _T('\\') );
 	}
 
 	void CleanLogFile( int MaintainDay )
 	{
-		Second Gap = Time::SubtractFromNow( _last_clean );
+		Second Gap = (Second)Time::SubtractFromNow( Private::_last_clean ).GetTotalSeconds();
 
 		if ( Gap <= (HOUR*24) ) return;
 
 		CTime BeforeDay = Time::AddSec( CTime::GetCurrentTime() , -(DAY * MaintainDay) );
 		
-		FolderUtil::Search( _loot_dir , _T("txt") , [&]( const WIN32_FIND_DATA& Info )
+		FolderUtil::Search( Private::_loot_dir , _T("txt") , [&]( const WIN32_FIND_DATA& Info )
 		{
 			if ( Info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) return TRUE;
 
 			CTime LastWriteFileTime = CTime(Info.ftLastWriteTime);
 
 			if ( BeforeDay > LastWriteFileTime )
-				File::Delete( _loot_dir + Info.cFileName );
+				File::Delete( Private::_loot_dir + Info.cFileName );
 
 			return TRUE;
 		});
 
-		_last_clean = CTime::GetCurrentTime();
+		Private::_last_clean = CTime::GetCurrentTime();
 	}
 
 	void Log( LPCTSTR LogText , va_list ap )
 	{
-		CSPtr RAII( cs_ );
+		CSPtr RAII( Private::cs_ );
 		
 		CTime Now = CTime::GetCurrentTime();
 
@@ -82,11 +77,9 @@ namespace Log
 		TCHAR buffer[MAX_BUF_SIZE] = { 0 , };
 		_vstprintf_s( buffer , LogText , ap );
 
-		CString LogTime  = Now.Format( _log_time_format );
-		CString FileName = Now.Format( _log_file_name_format );
-		CString LogFullPath = _loot_dir + FileName;
-
-		FolderUtil::CreateFolder( _loot_dir , FALSE );
+		CString LogTime     = Now.Format( _log_time_format );
+		CString FileName    = Now.Format( _log_file_name_format );
+		CString LogFullPath = Private::_loot_dir + FileName;
 
 		HandlePtr Handle = File::GetHandle( LogFullPath );
 
@@ -102,7 +95,5 @@ namespace Log
 		va_start( ap , Text );
 
 		Log( Text , ap );
-
-		va_end( ap );
 	}
 };

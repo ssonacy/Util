@@ -1,12 +1,6 @@
 #include "stdafx.h"
 #include "Serial.h"
 
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[]=__FILE__;
-#endif
-
 CSerial::CSerial()
 {
 	InitializeCriticalSectionAndSpinCount( &m_cs , 3000 );
@@ -22,6 +16,8 @@ CSerial::~CSerial()
 BOOL CSerial::OpenPort( int Port , DWORD dwBaud , BYTE byData , BYTE byStop , BYTE byParity , DWORD& LastError )
 {	
 	CSPtr CS( m_cs );
+
+	ClosePort();
 
 	m_osRead.Offset = 0;
 	m_osRead.OffsetHigh = 0;

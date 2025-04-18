@@ -11,7 +11,7 @@ namespace FolderUtil
 	void    CreateFolder( const CString& FolderPath , BOOL FirstDeleteFolder );
 	BOOL	ExistFolder( LPCTSTR FolerPath );
 
-	CString ShowFolderSelectDialog( HWND Parent , LPCTSTR Title , LPCTSTR FirstFolderPath );
+	CString ShowFolderSelectDialog( HWND Parent , LPCTSTR Title , LPCTSTR FirstFolderPath = NULL );
 	int		ShowFileSelectDialog( BOOL SingleSelect , LPCTSTR Filter , CStringArray& SelectedFile );
 	int     CopyFolderToFolder( CString SrcFolder , CString DestFolder , LPCTSTR Title );
 	void    CreateFolder( const CString& FolderPath , BOOL FirstDeleteFolder );

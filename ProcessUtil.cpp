@@ -1,36 +1,24 @@
 #include "stdafx.h"
 #include "ProcessUtil.h"
 
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[]=__FILE__;
-#endif
-
 namespace ProcessUtil
 {
-	namespace 
+	namespace Private
 	{
 		HighOrderList<HWND> _HWNDList;
 	};
 
-	HandlePtr Run( LPCTSTR WorkingDirectory , LPCTSTR OnlyExeName , DWORD* ErrorCode )
+	HandlePtr Run( LPCTSTR EXEPath , LPCTSTR RunArgument , DWORD* ErrorCode )
 	{
-		CString FullPath;
-		FullPath.Format( _T("%s%s") , WorkingDirectory , OnlyExeName );
-
 		TCHAR Path[MAX_PATH] = { 0 , };
-		StringCchCopy( Path , _countof(Path) , (LPCTSTR)FullPath );
+		StringCchCopy( Path , _countof(Path) , (LPCTSTR)STR( _T("%s %s") , EXEPath , RunArgument ) );
 
 		STARTUPINFO si = { 0 , };
-		si.cb = sizeof(STARTUPINFO);
-
 		PROCESS_INFORMATION pi = { 0 , };
-
-		BOOL  Ret = CreateProcess( NULL , Path , NULL , NULL , FALSE , NORMAL_PRIORITY_CLASS , 
-								   NULL , WorkingDirectory , &si , &pi );
+		si.cb = sizeof(STARTUPINFO);
+	
+		BOOL  Ret = CreateProcess( NULL , Path , NULL , NULL , FALSE , NORMAL_PRIORITY_CLASS , NULL , NULL , &si , &pi );
 		DWORD LastError = GetLastError();
-
 		if ( !Ret )
 		{
 			if ( ErrorCode ) *ErrorCode = LastError;
@@ -40,7 +28,7 @@ namespace ProcessUtil
 
 		CloseHandle( pi.hThread );
 
-		return HandlePtr( pi.hProcess );
+		return HandlePtr( std::move( pi.hProcess ) );
 	}
 
 	BOOL EnumerateProcess( EnumProcessFunction Func )
@@ -67,16 +55,16 @@ namespace ProcessUtil
 		DWORD lpdwProcessId = 0;
 		GetWindowThreadProcessId( h , &lpdwProcessId );
 		if( lpdwProcessId == l )
-			_HWNDList.push_back( h );
+			Private::_HWNDList.push_back( h );
 
 		return TRUE;
 	}
 
 	HighOrderList<HWND> PIDToHWNDs( DWORD ProcessID )
 	{
-		_HWNDList.clear();
+		Private::_HWNDList.clear();
 		EnumWindows( EnumHWNDFunction , ProcessID );
-		return _HWNDList;
+		return Private::_HWNDList;
 	}
 
 };

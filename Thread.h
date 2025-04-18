@@ -58,15 +58,3 @@ private:
 
 	DWORD m_dwSleepTick = 0;	// REQUEST_SLEEP 요청을 받았을때 얼마만큼 대기 할것인지를 결정하는 변수
 };
-
-namespace ThreadUtil
-{
-	// Thread 에 해당 하는 스레드가 현재 어느 주소에 존재하는 명령어를 실행중인지 리턴.
-	DWORD64	GetProgramCounter( HANDLE Thread );
-
-	// Thread가 현제 수행하고 있는 코드의 위치를 EqualCount 만큼 비교해서 동일하면 리턴 TRUE (WaitTick 후에 타임아웃실패 FALSE )
-	BOOL WaitForThreadAtAddress( HANDLE Thread , int EqualCount , ULONGLONG WaitTick );
-
-	// Thread의 현재 콜 스택에 FuncName이 존재하면 TRUE 그렇치 않거나 오류 상태면 FALSE
-	BOOL HasCallStack( HANDLE Thread , const CStringA& FuncName );
-};

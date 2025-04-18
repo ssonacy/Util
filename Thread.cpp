@@ -3,12 +3,6 @@
 #include <process.h>
 #include <dbghelp.h>
 
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[]=__FILE__;
-#endif
-
 CThread::~CThread()
 {
 	try
@@ -104,89 +98,3 @@ void CThread::Resume()
 
 	QueueUserAPC( CThread::WakeUpFn , m_hThread ,  NULL );
 }
-
-namespace ThreadUtil
-{
-	DWORD64	GetProgramCounter( HANDLE Thread )
-	{
-		CONTEXT Context = { 0 , };
-		Context.ContextFlags = CONTEXT_CONTROL;
-
-		if ( !GetThreadContext( Thread , &Context ) ) return -1;
-
-		return Context.Rip;
-	}
-
-	BOOL WaitForThreadAtAddress( HANDLE Thread , int EqualCount , ULONGLONG WaitTick )
-	{
-		ULONGLONG Begin = GetTickCount64();
-
-		do 
-		{
-			for ( int i = 1 ; i <= EqualCount ; ++i )
-			{
-				DWORD64 IP1 = GetProgramCounter( Thread );
-				Sleep(0);
-				DWORD64 IP2 = GetProgramCounter( Thread );
-
-				if ( IP1 != IP2 ) break;
-				if ( i == EqualCount ) return TRUE;
-			}
-
-		} while ( GetTickCount64() - Begin < WaitTick );
-
-		return FALSE;
-	}
-
-	BOOL HasCallStack( HANDLE Thread , const CStringA& FuncName )
-	{	
-		CONTEXT Context = { 0 , };
-		Context.ContextFlags = CONTEXT_FULL;
-
-		if ( !GetThreadContext( Thread , &Context ) ) return FALSE;
-
-		STACKFRAME	StackFrame  = { 0 , };
-		DWORD		MachineType = 0;
-
-		StackFrame.AddrPC.Mode = AddrModeFlat;
-		StackFrame.AddrStack.Mode = AddrModeFlat;
-		StackFrame.AddrFrame.Mode = AddrModeFlat;
-
-#if defined(_M_X64) || defined(_M_AMD64)
-		MachineType = IMAGE_FILE_MACHINE_AMD64;
-		StackFrame.AddrPC.Offset = Context.Rip;
-		StackFrame.AddrStack.Offset = Context.Rsp;
-		StackFrame.AddrFrame.Offset = Context.Rbp;
-#elif defined(_M_IX86)
-		MachineType = IMAGE_FILE_MACHINE_I386;
-		StackFrame.AddrPC.Offset = Context.Eip;
-		StackFrame.AddrStack.Offset = Context.Esp;
-		StackFrame.AddrFrame.Offset = Context.Ebp;
-#endif
-
-		if ( !SymInitialize( GetCurrentProcess() , NULL , TRUE ) ) return FALSE;
-
-		while ( StackWalk( MachineType , GetCurrentProcess() , Thread , &StackFrame , &Context , NULL , SymFunctionTableAccess , SymGetModuleBase , NULL ) )
-		{
-			DWORD64 Address = StackFrame.AddrPC.Offset;
-			if (Address == 0) break;
-
-			char symbolBuffer[sizeof(IMAGEHLP_SYMBOL) + 256] = { 0 , };
-			PIMAGEHLP_SYMBOL Symbol = (PIMAGEHLP_SYMBOL)symbolBuffer;
-			Symbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL);
-			Symbol->MaxNameLength = 256;
-
-			DWORD64 SymbolDisplacement = 0;
-			if ( !SymGetSymFromAddr( GetCurrentProcess() , Address , &SymbolDisplacement , Symbol ) ) continue;
-			
-			if ( FuncName == Symbol->Name )
-			{
-				SymCleanup( GetCurrentProcess() );
-				return TRUE;
-			}
-		}
-		
-		SymCleanup( GetCurrentProcess() );
-		return FALSE;
-	}
-};

@@ -71,7 +71,7 @@ public:
 	HexString( int Value , int Length ) : m_Hex( Str::IntToHex( Value , Length) ) {}
 	~HexString() = default;
 
-	inline void SetHexString( const CString& Hex ) { m_Hex = Hex; }
+	inline void SetHexString( const CString& Hex ) { m_Hex = m_Hex; }
 
 	int		 ToInt()	const	{ return Str::HexToInt( m_Hex ); }
 	CString  ToString() const	{ return m_Hex; }

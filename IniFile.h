@@ -3,7 +3,7 @@
 class CIniFile : public CObject
 {
 public:
-	CIniFile(LPCTSTR lpIniFileName, UINT iMaxStringLength);
+	CIniFile(LPCTSTR lpIniFileName, UINT iMaxStringLength = 1024*64);
 	virtual ~CIniFile();
 
 // Attributes

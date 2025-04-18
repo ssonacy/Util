@@ -1,26 +1,32 @@
 #pragma once
 #include <utility>
+#include <minwindef.h>
+#include "MemoryUtil.h"
 
-using FileBuffer = std::pair<LPBYTE,DWORD>;
 using FileSize   = __int64;
+using FileBuffer = std::pair< BytePtr , int >;
+
+#define READ_ALL (0)
 
 namespace File
 {
-	DWORD Write( HANDLE h , LPBYTE pData , int Size , DWORD* ErrorCode );
-	DWORD Write( LPCTSTR path , LPBYTE pData , int Size , DWORD* ErrorCode );
-	DWORD WriteLn( HANDLE h , LPBYTE pData , int Size , DWORD* ErrorCode );
-	DWORD WriteLn( LPCTSTR path , LPBYTE pData , int Size , DWORD* ErrorCode );
-
-	CharPtr    Read( HANDLE h , DWORD NullCharSize , DWORD* ErrorCode , DWORD* ReadSize );
-	FileBuffer Read( LPCTSTR path , DWORD* ErrorCode );
 	HandlePtr  GetHandle( LPCTSTR path );
-		
-	BOOL    Delete( LPCTSTR FilePath );
-	BOOL    ChageName( LPCTSTR FilePath , LPCTSTR NewFilePath , BOOL FirstDeleteNewFilePath );
 
-	BOOL IsExist( LPCTSTR path , HandlePtr* Result );
+	DWORD	   Write( LPCTSTR path , LPBYTE pData , int Size , DWORD* ErrorCode );
+	DWORD	   Write( HANDLE h , LPBYTE pData , int Size , DWORD* ErrorCode );
 
-	FileSize GetSize( LPCTSTR FilePath );
+	DWORD	   WriteLn( LPCTSTR path , LPBYTE pData , int Size , DWORD* ErrorCode );
+	DWORD	   WriteLn( HANDLE h , LPBYTE pData , int Size , DWORD* ErrorCode );
+
+	FileBuffer Read( LPCTSTR path , int ReadSize , int AdditionalSize , DWORD* ErrorCode );
+	FileBuffer Read( HANDLE h , int ReadSize , int AdditionalSize , DWORD* ErrorCode );
+
+	BOOL	   Delete( LPCTSTR FilePath );
+	BOOL	   ChageName( LPCTSTR FilePath , LPCTSTR NewFilePath , BOOL DeleteDestPathNewFile );
+	BOOL	   IsExist( LPCTSTR path , HandlePtr* Result );
+
+	FileSize   GetSize( LPCTSTR FilePath );
+	FileSize   GetSize( HANDLE h );
 };
 
 namespace USB

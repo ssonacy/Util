@@ -1,12 +1,6 @@
 #include "stdafx.h"
 #include "FolderUtil.h"
 
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[]=__FILE__;
-#endif
-
 namespace FolderUtil
 {
 	CString GetFullDirectoryPath( BOOL LastSlash )
@@ -29,45 +23,48 @@ namespace FolderUtil
 		return PathFileExists(FolerPath);
 	}
 
-	int CALLBACK BrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
+	namespace Private
 	{
-		switch (uMsg) 
-		{    
-		case BFFM_INITIALIZED:
-			{
-				if ( lpData )
-					SendMessage(hwnd, BFFM_SETSELECTION, TRUE, lpData);
-			}
-			break;
+		int CALLBACK BrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
+		{
+			if ( uMsg == BFFM_INITIALIZED )
+				SendMessage( hwnd , BFFM_SETSELECTION , TRUE , lpData );
+
+			return 0;
 		}
-		return 0;
-	}
+	};
 
 	CString ShowFolderSelectDialog( HWND Parent , LPCTSTR Title , LPCTSTR FirstFolderPath )
 	{
 		BROWSEINFO  BrInfo = { 0 , };
-		TCHAR		pszPathname[MAX_PATH] = { 0 , };
-	
+		TCHAR pszPathname[MAX_PATH] = { 0 , };
+		TCHAR FirstFolderPathBuffer[MAX_PATH] = { 0 , };
+		
+		CString FirstFolder = !FirstFolderPath ? FolderUtil::GetFullDirectoryPath() : FirstFolderPath;
+		_tcscpy_s( FirstFolderPathBuffer , MAX_PATH , (LPCTSTR)FirstFolder );
+
 		BrInfo.hwndOwner	  = Parent;
 		BrInfo.pszDisplayName = pszPathname;
 		BrInfo.lpszTitle	  = Title;
-		BrInfo.ulFlags		  = BIF_RETURNONLYFSDIRS;
-		BrInfo.lpfn			  = BrowseCallbackProc;
-		BrInfo.lParam		  = (LPARAM)FirstFolderPath;
+		BrInfo.ulFlags		  = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+		BrInfo.lpfn			  = Private::BrowseCallbackProc;
+		BrInfo.lParam		  = (LPARAM)(LPCTSTR)FirstFolderPathBuffer;
 
 		LPITEMIDLIST pidlBrowse = ::SHBrowseForFolder( &BrInfo );
+		if ( !pidlBrowse ) return _T("");
 
-		if ( pidlBrowse )
-			SHGetPathFromIDList( pidlBrowse , pszPathname );
-    
-		return pszPathname;
+		TCHAR SelectedPath[MAX_PATH] = { 0 , };
+		SHGetPathFromIDList( pidlBrowse , SelectedPath );
+		CoTaskMemFree( pidlBrowse );
+		
+		return SelectedPath;
 	}
 
 	int ShowFileSelectDialog( BOOL SingleSelect , LPCTSTR Filter , CStringArray& SelectedFile )
 	{
 		CFileDialog dlg( TRUE , NULL , NULL , 
 						SingleSelect ? OFN_HIDEREADONLY : OFN_HIDEREADONLY|OFN_ALLOWMULTISELECT , 
-						!Filter ? _T("All Files(*.*)|*.*||") : Filter  );
+						!Filter ? _T("All Files(*.*)|*.*||") : Filter , NULL , 0 , FALSE  );
 
 		if ( IDOK != dlg.DoModal() ) return 0;
 
@@ -103,8 +100,6 @@ namespace FolderUtil
 		if ( FirstDeleteFolder )
 			DeleteFolder( FolderPath );
 
-		if ( ExistFolder( FolderPath ) ) return;
-
 		SHCreateDirectoryEx( NULL , (LPCTSTR)FolderPath , NULL );
 	}
 
@@ -134,12 +129,17 @@ namespace FolderUtil
 		else				 DirPath += _T("*.") + Ext;
 		
 		WIN32_FIND_DATA Finder = { 0 , };
-
-		HANDLE hFind	 = FindFirstFile( DirPath , &Finder );
-		DWORD  LastError = GetLastError();
+		HANDLE hFind = FindFirstFile( DirPath , &Finder );
+		DWORD LastError = GetLastError();
 		
-		if ( hFind == INVALID_HANDLE_VALUE ) return FALSE;
-
+		// FindFirstFile 함수는 INVALID_HANDLE_VALUE(-1)를 리턴 하는 경우는 두가지.
+		// 1. FindFirstFile 함수 호출 자체의 실패.
+		// 2. 찾을려는 파일 없음.
+		// 두가지 경우에 대한 분별은 GetLastError 리턴값을 추가적으로 확인 필요.
+		// 2번의 경우 GetLastError 함수는 ERROR_FILE_NOT_FOUND(2) 리턴.
+		if ( hFind == INVALID_HANDLE_VALUE ) return FALSE;		// 1번, 1번의 경우 함수 호출 실패
+		if ( LastError == ERROR_FILE_NOT_FOUND ) return TRUE;	// 2번, 2번의 경우 함수 호출 성공
+		
 		do
 		{
 			if ( !Func( Finder ) ) break;

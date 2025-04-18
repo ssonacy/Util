@@ -1,12 +1,6 @@
 #include "stdafx.h"
 #include "StringUtil.h"
 
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[]=__FILE__;
-#endif
-
 namespace Str // String Util
 {
 	CStringW ToStringW( int Value )
@@ -159,7 +153,7 @@ namespace Str // String Util
 	{
 		va_list ap;
 		va_start( ap, Format );
-
+		
 		WCHAR Result[4096] = { 0 , };
 		vswprintf_s( Result , Format , ap );
 

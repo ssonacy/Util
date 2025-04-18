@@ -1,4 +1,5 @@
 #pragma once
+#include <utility>
 
 #define RELEASE_OBJECT(X)	if ( X ) { delete X; X = NULL; }
 #define RELEASE_ARRAY(X)	if ( X ) { delete[] X; X = NULL; }
@@ -31,20 +32,16 @@ struct EventDestory
 
 struct ObjectFree { inline void operator()(void* v) const { free(v); } };
 
-struct CritialSectionCtor  { inline void operator()(CRITICAL_SECTION& cs) const { EnterCriticalSection(&cs); } };
-
-struct CritialSectionDtor  { inline void operator()(CRITICAL_SECTION& cs) const { LeaveCriticalSection(&cs); } };
-
 template<typename T, typename D , typename C = DummyConstructor<T> >
 class RAII
 {
 public:
 
-	RAII() : _t( T() ) {}
-
-	RAII( T t ) : _t(t) { _c(_t); }
+	RAII() { _t = T(); }
 
 	RAII( RAII&& r ) { _t = r.Reset( T() ); }
+
+	RAII( T rhs ) : _t(rhs) { _c(_t); }
 
 	~RAII() {  _d(_t); }
 
@@ -52,6 +49,7 @@ public:
 	{
 		T temp = std::forward<T>(_t);
 		_t = std::forward<T>(t);
+
 		return temp;
 	}
 
@@ -70,21 +68,29 @@ public:
 
 private:
 
+	RAII( const RAII& r ) = delete;
+	RAII& operator=( const RAII& rhs ) = delete;
+
+private:
+
 	D _d;
 	C _c;
 	T _t;
 };
 
 template<typename T>  
-using ArrayPtr = RAII<T*,ArrayDeletor<T*>>;
-
-template<typename T>  
-using ObjectPtr = RAII<T*,ObjectDeletor<T*>>;
-
+using ArrayPtr			= RAII<T*,ArrayDeletor<T*>>;
 using HandlePtr			= RAII<HANDLE,HandleDeletor>;
 using WideCharPtr		= ArrayPtr<WCHAR>;
 using CharPtr			= ArrayPtr<CHAR>;
 using TCharPtr			= ArrayPtr<TCHAR>;
-using CSPtr				= RAII<CRITICAL_SECTION&,CritialSectionDtor,CritialSectionCtor>;
 using BytePtr			= ArrayPtr<BYTE>;
 using EventHandlePtr	= RAII<HANDLE,EventDestory>;
+
+template<typename T>
+using ObjPtr			= RAII<T*,ObjectDeletor<T*>>;
+
+namespace MemUtil
+{
+	BytePtr Copy( void* pSrc , int Size , int DestAddSize );
+};

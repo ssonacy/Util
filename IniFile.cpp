@@ -151,7 +151,7 @@ CIniFile::GetString(LPCTSTR lpSection,		// [in] section name
 CString CIniFile::GetString(LPCTSTR lpSection, LPCTSTR lpKey)
 {
 	CString Ret;
-	GetString( lpSection , lpKey , Ret , _T("0") );
+	GetString( lpSection , lpKey , Ret , _T("") );
 	return Ret;
 }
 

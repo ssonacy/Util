@@ -1,12 +1,5 @@
 #include "stdafx.h"
 #include "FileSystemUtil.h"
-#include <filesystem>
-
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[]=__FILE__;
-#endif
 
 namespace File
 {
@@ -59,51 +52,35 @@ namespace File
 		return Written;
 	}
 
-	CharPtr Read( HANDLE h , DWORD NullCharSize , DWORD* ErrorCode , DWORD* ReadSize )
+	FileBuffer Read( LPCTSTR path , int ReadSize , int AdditionalSize , DWORD* ErrorCode )
 	{
-		DWORD FileSize  = ::GetFileSize( h , NULL );
-		DWORD read_byte = 0;
-
-		CharPtr Buffer( new CHAR[FileSize + NullCharSize]{ 0 , } );
-		if ( !::ReadFile( h , (LPVOID)Buffer.Get() , FileSize , &read_byte , NULL ) )
+		HandlePtr Handle = GetHandle( path );
+		if ( Handle.Get() == INVALID_HANDLE_VALUE )
 		{
 			if ( ErrorCode ) *ErrorCode = GetLastError();
-
-			return CharPtr(NULL);
+			return FileBuffer( nullptr , 0 );
 		}
 
-		if ( ErrorCode ) *ErrorCode = GetLastError();
-		if ( ReadSize  ) *ReadSize  = read_byte;
-
-		return std::move(Buffer);
+		return Read( Handle.Get() , ReadSize , AdditionalSize , ErrorCode );
 	}
 
-	FileBuffer Read( LPCTSTR path , DWORD* ErrorCode )
+	FileBuffer Read( HANDLE h , int ReadSize , int AdditionalSize , DWORD* ErrorCode )
 	{
-		HandlePtr handle = GetHandle( path );
-		if ( handle.Get() == INVALID_HANDLE_VALUE )
-		{
-			if ( ErrorCode ) *ErrorCode = GetLastError();
-			return FileBuffer(NULL,0);
-		}
-
-		DWORD FileSize = ::GetFileSize( handle.Get() , NULL );
-		ArrayPtr<BYTE> BufferPtr( new BYTE[FileSize] { 0 , } );
+		if ( ReadSize == READ_ALL ) ReadSize = (int)File::GetSize( h );
+		
+		int BufferSize = ReadSize + AdditionalSize;
+		BytePtr BufferPtr( new BYTE[BufferSize] { 0 } );
 
 		DWORD ReadByte = 0;
-		if ( !::ReadFile( handle.Get() , (LPVOID)BufferPtr.Get() , FileSize , &ReadByte , NULL ) )
-		{
-			if ( ErrorCode ) *ErrorCode = GetLastError();
-
-			return FileBuffer(NULL,0);
-		}
+		BOOL Ret = ReadFile( h , (LPVOID)BufferPtr.Get() , ReadSize , &ReadByte , NULL );
+		if ( ErrorCode ) *ErrorCode = GetLastError();
 		
-		return FileBuffer( BufferPtr.Reset(NULL) , ReadByte );
+		return Ret ? FileBuffer( std::move(BufferPtr) , ReadByte ) : FileBuffer( nullptr , 0 );
 	}
 
 	HandlePtr GetHandle( LPCTSTR path )
 	{
-		return HandlePtr( CreateFile( path , GENERIC_READ|GENERIC_WRITE , FILE_SHARE_READ | FILE_SHARE_WRITE , NULL , OPEN_ALWAYS , FILE_ATTRIBUTE_NORMAL , NULL ) );
+		return HandlePtr( CreateFile( path , GENERIC_READ|GENERIC_WRITE , FILE_SHARE_READ|FILE_SHARE_WRITE , NULL , OPEN_ALWAYS , FILE_ATTRIBUTE_NORMAL , NULL ) );
 	}
 
 	BOOL Delete( LPCTSTR FilePath )
@@ -111,10 +88,10 @@ namespace File
 		return ::DeleteFile( FilePath );
 	}
 
-	BOOL  ChageName( LPCTSTR FilePath , LPCTSTR NewFilePath , BOOL FirstDeleteNewFilePath )
+	BOOL  ChageName( LPCTSTR FilePath , LPCTSTR NewFilePath , BOOL DeleteDestPathNewFile )
 	{
-		if ( FirstDeleteNewFilePath ) 
-			Delete(NewFilePath);
+		if ( DeleteDestPathNewFile )
+			Delete( NewFilePath );
 
 		return MoveFile( FilePath , NewFilePath );
 	}
@@ -128,8 +105,7 @@ namespace File
 	
 		FindClose( Searching );
 
-		if ( Result )
-			*Result = std::move( File::GetHandle( path ) );
+		if ( Result ) *Result = std::move( File::GetHandle( path ) );
 
 		return TRUE;
 	}
@@ -139,14 +115,18 @@ namespace File
 		HandlePtr handle = GetHandle( FilePath );
 		if ( handle.Get() == INVALID_HANDLE_VALUE ) return 0;		
 
+		return GetSize( handle.Get() );
+	}
+
+	FileSize GetSize( HANDLE h )
+	{
 		DWORD High = 0;
-		DWORD Low  = ::GetFileSize( handle.Get() , &High );
+		DWORD Low  = ::GetFileSize( h , &High );
 
 		FileSize Ret = High;
 
 		return (Ret << 32) | Low;
 	}
-
 };
 
 namespace USB

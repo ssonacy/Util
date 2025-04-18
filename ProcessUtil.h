@@ -8,9 +8,7 @@ using EnumModuleFunction  = std::function<BOOL(const MODULEENTRY32&)>;
 
 namespace ProcessUtil
 {
-	HandlePtr Run( LPCTSTR WorkingDirectory , LPCTSTR OnlyExeName , DWORD* ErrorCode );
-
-	BOOL EnumerateProcess( EnumProcessFunction Func );
+	HandlePtr Run( LPCTSTR WorkingDirectory , LPCTSTR ExeNameWithArg , DWORD* ErrorCode );
 
 	HighOrderList<HWND> PIDToHWNDs( DWORD ProcessID );
 };
